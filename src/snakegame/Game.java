@@ -2,50 +2,83 @@ package snakegame;
 
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.Arrays;
+import java.util.Scanner;
 
 public class Game extends JFrame {
 
     // Kulkusuunta
-    static char direction = '0';
+    static char direction = '0';        
     static char previous_direction = '0';
 
-    // Pisteet ja pelin tila
-    static int score = 0;
+    // Pelin tila
     static boolean gameOver = false;
+    static boolean quit = false;
+    static boolean newGame = true;
 
-    // Pelilaudan koko
+    // Pelaaja
+    static int score = 0;
+    static String playerName = null;
+
+    // Alustetaan pelilauta
     static int width = 40;
     static int height = 16;
+    static int speed = 1;
+            
+    // Historiatiedot
+    static String[] records = null;
 
-    // Madon nopeus
-    static int Speed = 1;
+    public static void main(String... arg) throws InterruptedException {
+        
+        // pelaaja
+        Scanner in = new Scanner(System.in);
+        System.out.println("PLAYER NAME:");
+        playerName = in.nextLine();
+        in.close();
 
-    public static void main(String... arg) throws IOException, InterruptedException {
-
+        // vaikka konsolipeli, niin laitetaan kuuntelija JFramelle
         new Game();
 
         // Luodaan objetit
-        Snake snake = new Snake(width, height);
         Map map = new Map(width, height);
-        Fruit fruit = new Fruit(width, height);
+        Fruit fruit = null;
+        Snake snake = null;
 
-        while (!gameOver) {
+        while (true) {
 
-            CleanScreen(); // Tyhjätään komentokehote uudelleen piirtoa varten
+            // lopetetaan peli-istunto
+            if(quit) {
+                break;
+            }
 
-            Update(snake, fruit, map, direction, width, height); // Päivitetään madon sijainti
+            // alustetaan uusi peli
+            if (newGame) {
+                snake = new Snake(width, height);
+                fruit = new Fruit(width, height);
+                newGame = false;
+            }
 
-            Draw(snake, map, fruit, gameOver); // Piiretään kaikki
+            cleanScreen(); // Tyhjätään komentokehote uudelleen piirtoa varten
+
+            update(snake, fruit, map); // Päivitetään madon sijainti
+
+            draw(snake, map, fruit); // Piiretään kaikki            
 
             Thread.sleep(100); // Pysäytetään säije 100 millisekunniksi
         }
+
+        cleanScreen(); 
     }
 
-    public static void Update(Snake snake, Fruit fruit, Map map, char direction, int width, int height) {
+    public static void update(Snake snake, Fruit fruit, Map map) {
 
         if (snake.length > 0) {
 
@@ -115,13 +148,20 @@ public class Game extends JFrame {
             }
         }
     }
-
-    public static void CleanScreen() throws IOException, InterruptedException {
-        new ProcessBuilder("cmd", "/c", "cls").inheritIO().start().waitFor(); // Tyhjätään komentokehote
-                                                                              // "cls"-komennolla
+    
+    public static void cleanScreen() {
+        
+        try {
+        
+            // Tyhjätään komentokehote "cls"-komennolla
+            new ProcessBuilder("cmd", "/c", "cls").inheritIO().start().waitFor();
+        
+        } catch (InterruptedException | IOException e) {
+            throw new RuntimeException(e); 
+        }   
     }
 
-    public static void Draw(Snake snake, Map map, Fruit fruit, boolean Gameover) {
+    public static void draw(Snake snake, Map map, Fruit fruit) {
 
         // Annetaan kartan koolle lyhyemmät muuttujanimet
         int W = map.mapWidth;
@@ -143,7 +183,12 @@ public class Game extends JFrame {
         }
         output_buffer += "\n";
 
-        if (!Gameover) { // Mikäli peli ei ole päättynyt
+        /**  JUST FOR TESTING
+        if (snake.length > 0) {
+            gameOver = true;
+        }
+        */
+        if (!gameOver) { // Mikäli peli ei ole päättynyt
 
             // Käydään läpi jokainen rivi
             for (int i = 0; i < H; i++) {
@@ -179,41 +224,17 @@ public class Game extends JFrame {
                 }
                 output_buffer += "\n"; // Jokaisen rivin perään lisätään newline-character
             }
-        } else { // Jos peli on päättynyt niin piirretään lopetusnäyttö
-            for (int i = 0; i < H; i++) { // Käydään läpi jokainen rivi
-                if (i != H / 2) { // Jos rivin numero on kahdella jaollinen
-                    for (int j = 0; j < W + 2; j++) { // Käydään läpi jokainen sarake
-                        if (j == 0) { // Piiretään kartan yläreuna
-                            output_buffer += "#";
-                        } else if (j == W + 1) { // Piiretään kartan oikea reunaviiva
-                            output_buffer += "#";
-                        } else {
-                            output_buffer += " "; // Tyhjä
-                        }
-                    }
-                    output_buffer += "\n"; // Jokaisen rivin perään lisätään newline-character
-                } else {
-                    output_buffer += "#"; // Piiretään oikea reunaviiva
-                    for (int j = 0; j < (W - 10) / 2; j++) {
-                        output_buffer += " ";
-                    }
-                    output_buffer += "GAME OVER!"; // Piiretään "Game over"-teksti
-                    for (int j = 0; j < (W - 10) / 2; j++) {
-                        output_buffer += " ";
-                    }
-                    if (W % 2 != 0) { // Jos sarakkeen jakojäännös ei ole 0 piiretään tyhjä
-                        output_buffer += " ";
-                    }
-                    output_buffer += "#\n"; // Lisätään vielä oikeaan alanurkkaan reunaviiva
-                }
-            }
-        }
-        for (int i = 0; i < W + 2; i++) { // Piirretään kartan alareuna
-            output_buffer += "#";
-        }
-        output_buffer += "\nScore: " + score + "\n"; // Piiretään pistetulos kartan alapuollelle
 
-        System.out.print(output_buffer); // Tulostetaan "puskuroitu" teksti
+            for (int i = 0; i < W + 2; i++) { // Piirretään kartan alareuna
+                output_buffer += "#";
+            }
+            output_buffer += "\nScore: " + score + "\n"; // Piiretään pistetulos kartan alapuollelle
+    
+            System.out.print(output_buffer); // Tulostetaan "puskuroitu" teksti
+
+        } else {
+            drawEndScreen();
+        } 
     }
 
     public Game() {
@@ -231,8 +252,82 @@ public class Game extends JFrame {
         // Lisätään tapahtumankäsittelijä näppäin painalluksille
         this.addKeyListener(new KeyAdapter() {
             public void keyPressed(KeyEvent event) { // Näppäinpainallus tapahtuma
-                direction = event.getKeyChar();
+               
+                char keyChar = event.getKeyChar();
+                
+                // uusi peli? 
+                if (keyChar == 'y' || keyChar == 'Y') {
+                    gameOver = false;
+                    newGame = true;
+                    score = 0;
+                    records = null;
+                // lopetaanko?
+                } else if (keyChar == 'q' || keyChar == 'Q') {
+                    quit = true;
+                } else {
+                    direction = keyChar;
+                }
             }
         });
+    }
+
+    private static void drawEndScreen() {
+        
+        cleanScreen();
+
+        if(records == null) {
+            records = handleTopUsers();
+        }
+
+        System.out.println("*** GAME OVER! ***");
+        System.out.println("\nPLAYER " + playerName.toUpperCase() + " SCORE IS " + score);
+        System.out.println("\nTOP PLAYERS:");
+        
+        for (int i = 3; i > 0; i--) {
+            System.out.println("\t" + records[i]);
+        }
+
+        System.out.println("\n\nTRY AGAIN OR QUIT (Y/Q)?");
+    }
+
+    private static  String[] handleTopUsers() {
+        
+        // Luetaan kolme parasta tulosta 
+        File file = new File("records.data");
+        
+        String[] records = new String[4];
+
+        try {
+
+            Scanner sc = new Scanner(file);
+
+            records[0] = sc.nextLine();
+            records[1] = sc.nextLine();
+            records[2] = sc.nextLine();
+
+            sc.close();
+        } 
+        catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+        
+        records[3] = score + " " + playerName;
+
+        Arrays.sort(records);
+
+        records[0] = "";
+        
+        try {
+            PrintWriter writer = new PrintWriter(new File("records.data"));
+
+            for (int i = 3; i > 0; i--) {
+                writer.println(records[i]);
+            }
+            writer.close();
+        } catch (FileNotFoundException e) {
+            
+            throw new RuntimeException(e);
+        }
+        return records;
     }
 }
