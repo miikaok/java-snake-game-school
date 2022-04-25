@@ -27,8 +27,9 @@ class Snake {
     }
 }
 
-class Map {
+class Board {
 
+    public static final String Entry = null;
     int mapHeight;
     int mapWidth;
 
@@ -38,7 +39,7 @@ class Map {
      * @param width  Pelilaudan leveys
      * @param height Pelilaudan korkeus
      */
-    Map(int width, int height) {
+    Board(int width, int height) {
         mapHeight = height;
         mapWidth = width;
     }

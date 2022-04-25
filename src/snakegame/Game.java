@@ -6,17 +6,15 @@ import java.awt.event.KeyEvent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
 
 public class Game extends JFrame {
 
     // Kulkusuunta
-    static char direction = '0';        
+    static char direction = '0';
     static char previous_direction = '0';
 
     // Pelin tila
@@ -32,12 +30,9 @@ public class Game extends JFrame {
     static int width = 40;
     static int height = 16;
     static int speed = 1;
-            
-    // Historiatiedot
-    static String[] records = null;
 
     public static void main(String... arg) throws InterruptedException {
-        
+
         // pelaaja
         Scanner in = new Scanner(System.in);
         System.out.println("PLAYER NAME:");
@@ -48,14 +43,14 @@ public class Game extends JFrame {
         new Game();
 
         // Luodaan objetit
-        Map map = new Map(width, height);
+        Board map = new Board(width, height);
         Fruit fruit = null;
         Snake snake = null;
 
         while (true) {
 
             // lopetetaan peli-istunto
-            if(quit) {
+            if (quit) {
                 break;
             }
 
@@ -70,15 +65,15 @@ public class Game extends JFrame {
 
             update(snake, fruit, map); // Päivitetään madon sijainti
 
-            draw(snake, map, fruit); // Piiretään kaikki            
+            draw(snake, map, fruit); // Piiretään kaikki
 
             Thread.sleep(100); // Pysäytetään säije 100 millisekunniksi
         }
 
-        cleanScreen(); 
+        cleanScreen();
     }
 
-    public static void update(Snake snake, Fruit fruit, Map map) {
+    public static void update(Snake snake, Fruit fruit, Board map) {
 
         if (snake.length > 0) {
 
@@ -145,23 +140,21 @@ public class Game extends JFrame {
         for (int i = 0; i < snake.length; i++) {
             if ((snake.x == snake.tailx[i]) && (snake.y == snake.taily[i])) {
                 gameOver = true;
+                Highscores.WriteHighscores(playerName, score);
             }
         }
     }
-    
+
     public static void cleanScreen() {
-        
         try {
-        
             // Tyhjätään komentokehote "cls"-komennolla
             new ProcessBuilder("cmd", "/c", "cls").inheritIO().start().waitFor();
-        
         } catch (InterruptedException | IOException e) {
-            throw new RuntimeException(e); 
-        }   
+            throw new RuntimeException(e);
+        }
     }
 
-    public static void draw(Snake snake, Map map, Fruit fruit) {
+    public static void draw(Snake snake, Board map, Fruit fruit) {
 
         // Annetaan kartan koolle lyhyemmät muuttujanimet
         int W = map.mapWidth;
@@ -183,11 +176,6 @@ public class Game extends JFrame {
         }
         output_buffer += "\n";
 
-        /**  JUST FOR TESTING
-        if (snake.length > 0) {
-            gameOver = true;
-        }
-        */
         if (!gameOver) { // Mikäli peli ei ole päättynyt
 
             // Käydään läpi jokainen rivi
@@ -229,12 +217,12 @@ public class Game extends JFrame {
                 output_buffer += "#";
             }
             output_buffer += "\nScore: " + score + "\n"; // Piiretään pistetulos kartan alapuollelle
-    
+
             System.out.print(output_buffer); // Tulostetaan "puskuroitu" teksti
 
         } else {
             drawEndScreen();
-        } 
+        }
     }
 
     public Game() {
@@ -252,16 +240,15 @@ public class Game extends JFrame {
         // Lisätään tapahtumankäsittelijä näppäin painalluksille
         this.addKeyListener(new KeyAdapter() {
             public void keyPressed(KeyEvent event) { // Näppäinpainallus tapahtuma
-               
+
                 char keyChar = event.getKeyChar();
-                
-                // uusi peli? 
+
+                // uusi peli?
                 if (keyChar == 'y' || keyChar == 'Y') {
                     gameOver = false;
                     newGame = true;
                     score = 0;
-                    records = null;
-                // lopetaanko?
+                    // lopetaanko?
                 } else if (keyChar == 'q' || keyChar == 'Q') {
                     quit = true;
                 } else {
@@ -272,62 +259,22 @@ public class Game extends JFrame {
     }
 
     private static void drawEndScreen() {
-        
+
         cleanScreen();
 
-        if(records == null) {
-            records = handleTopUsers();
-        }
-
         System.out.println("*** GAME OVER! ***");
-        System.out.println("\nPLAYER " + playerName.toUpperCase() + " SCORE IS " + score);
+        System.out.println("\nPLAYER " + playerName + " SCORE IS " + score);
+
+        HashMap<String, Integer> highscores = Highscores.ReadHighscores();
+
         System.out.println("\nTOP PLAYERS:");
-        
-        for (int i = 3; i > 0; i--) {
-            System.out.println("\t" + records[i]);
+
+        for (Map.Entry<String, Integer> entry : highscores.entrySet()) {
+            String key = entry.getKey();
+            Integer value = entry.getValue();
+            System.out.println(key + " - " + value);
         }
 
         System.out.println("\n\nTRY AGAIN OR QUIT (Y/Q)?");
-    }
-
-    private static  String[] handleTopUsers() {
-        
-        // Luetaan kolme parasta tulosta 
-        File file = new File("records.data");
-        
-        String[] records = new String[4];
-
-        try {
-
-            Scanner sc = new Scanner(file);
-
-            records[0] = sc.nextLine();
-            records[1] = sc.nextLine();
-            records[2] = sc.nextLine();
-
-            sc.close();
-        } 
-        catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-        
-        records[3] = score + " " + playerName;
-
-        Arrays.sort(records);
-
-        records[0] = "";
-        
-        try {
-            PrintWriter writer = new PrintWriter(new File("records.data"));
-
-            for (int i = 3; i > 0; i--) {
-                writer.println(records[i]);
-            }
-            writer.close();
-        } catch (FileNotFoundException e) {
-            
-            throw new RuntimeException(e);
-        }
-        return records;
     }
 }
